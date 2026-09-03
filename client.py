@@ -2,7 +2,7 @@ from socket import *
 
 SERVER_PORT = 6063
 BROADCAST_IP = "255.255.255.255"
-KEY = "bolsoputo"
+KEY = "server123"
 
 client = socket(AF_INET, SOCK_DGRAM)
 client.setsockopt(SOL_SOCKET, SO_BROADCAST, 1)
