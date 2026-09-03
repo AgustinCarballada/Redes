@@ -26,20 +26,8 @@ def init_tcp_connection():
     master.listen()
     return master
 
-# dict = {
-#     "id": {
-#         "socket": socket,
-#         "values": []
-#     }
-# }
 
-
-# def update_values(connection: socket, values:(int, int)):
-#     if dict[id].values.length() < 10:
-#         dict[id] == 
-
-
-def client_handler(connSocket: socket, clientAddr):
+def client_handler(connSocket: socket):
     print("asdasdasd")        
     connSocket.send(f"REG_RESP".encode())
     while True:
@@ -54,14 +42,13 @@ def client_handler(connSocket: socket, clientAddr):
 def connect_client(master:socket, id):
     id += 1
     while True:
-        print
         connection, addr = master.accept()
         message = connection.recv(1024)
         (command, key) = message.decode().split(" ")
         if key == KEY:
-            client_thread = threading.Thread(
+            threading.Thread(
                 target= client_handler,
-                args = (connection, addr),
+                args = (connection),
                 daemon= True
             ).start()
 
