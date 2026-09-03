@@ -53,11 +53,9 @@ def client_handler(connSocket: socket, clientAddr):
 
 def connect_client(master:socket, id):
     id += 1
-    print("2")
     while True:
         print
         connection, addr = master.accept()
-        print("1")
         message = connection.recv(1024)
         (command, key) = message.decode().split(" ")
         if key == KEY:
