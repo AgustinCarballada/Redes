@@ -27,9 +27,9 @@ if message.decode().startswith("SERVER"):
                 message = client_tcp.recv(1024).decode()
                 log_response(message, addr)
                 if message.startswith("GET_PROC"):
-                    message = ""
-                    for proc in psutil.process_iter(['pid', 'name']):
-                        message += f"{proc.info["pid"]}:{proc.info["name"]} "
+                    message = "SE PROCESARON PROCESOS"
+                    # for proc in psutil.process_iter(['pid', 'name']):
+                    #     message += f"{proc.info["pid"]}:{proc.info["name"]} "
                     client_tcp.send(f"PROC {message}\n".encode())
         except OSError:
             return
@@ -46,7 +46,7 @@ if message.decode().startswith("SERVER"):
         def send_metrics(client_tcp, cpu_rate, mem_rate):
             try:
                 while True:
-                    time.sleep(15)
+                    time.sleep(1)
 
                     cpu = psutil.cpu_percent()
                     if cpu > cpu_rate:
@@ -65,7 +65,7 @@ if message.decode().startswith("SERVER"):
         threading.Thread(target=wait_server_interrupt, args=(client_tcp, (server_ip, int(tcp_port)), ), daemon=True).start()
         threading.Thread(target=send_metrics, args=(client_tcp, cpu_rate, mem_rate), daemon=True).start()
 
-        time.sleep(5)
+        time.sleep(60)
 
     client_tcp.send(f"END\n".encode())
     client_tcp.close()
