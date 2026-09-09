@@ -3,12 +3,15 @@ import threading
 import psutil
 import time
 
-def log_response(message, addr):
-    print(message, addr)
 
 SERVER_PORT = 6063
 BROADCAST_IP = "255.255.255.255"
 KEY = "server123"
+
+
+def log_response(message, addr):
+    print(message, addr)
+
 
 client = socket(AF_INET, SOCK_DGRAM)
 client.setsockopt(SOL_SOCKET, SO_BROADCAST, 1)
@@ -24,13 +27,13 @@ if message.decode().startswith("SERVER"):
     def wait_server_interrupt(client_tcp:socket, addr):
         try:
             while True:
-                message = client_tcp.recv(1024).decode()
-                log_response(message, addr)
-                if message.startswith("GET_PROC"):
-                    message = "SE PROCESARON PROCESOS"
-                    # for proc in psutil.process_iter(['pid', 'name']):
-                    #     message += f"{proc.info["pid"]}:{proc.info["name"]} "
-                    client_tcp.send(f"PROC {message}\n".encode())
+                response = client_tcp.recv(1024).decode()
+                log_response(response, addr)
+                if response.startswith("GET_PROC"):
+                    message = ""
+                    for proc in psutil.process_iter(['pid', 'name']):
+                        message += f" {proc.info["pid"]}:{proc.info["name"]}"
+                    client_tcp.send(f"PROC{message}\n".encode())
         except OSError:
             return
 
@@ -43,7 +46,20 @@ if message.decode().startswith("SERVER"):
     log_response(message, (server_ip, server_port))
     if message.decode().startswith("REG_RESP"):
 
-        def send_metrics(client_tcp, cpu_rate, mem_rate):
+        def send_metrics(client_tcp):
+            try:
+                while True:
+                    time.sleep(15)
+
+                    cpu = psutil.cpu_percent()
+                    client_tcp.send(f"METRIC CPU {cpu}\n".encode())
+
+                    mem = psutil.virtual_memory().percent
+                    client_tcp.send(f"METRIC MEM {mem}\n".encode())
+            except OSError:
+                return
+
+        def send_alerts(client_tcp, cpu_rate, mem_rate):
             try:
                 while True:
                     time.sleep(1)
@@ -51,19 +67,16 @@ if message.decode().startswith("SERVER"):
                     cpu = psutil.cpu_percent()
                     if cpu > cpu_rate:
                         client_tcp.send(f"ALERT CPU {cpu}\n".encode())
-                    else:
-                        client_tcp.send(f"METRIC CPU {cpu}\n".encode())
 
                     mem = psutil.virtual_memory().percent
                     if mem > mem_rate:
                         client_tcp.send(f"ALERT MEM {mem}\n".encode())
-                    else:
-                        client_tcp.send(f"METRIC MEM {mem}\n".encode())
             except OSError:
                 return
 
         threading.Thread(target=wait_server_interrupt, args=(client_tcp, (server_ip, int(tcp_port)), ), daemon=True).start()
-        threading.Thread(target=send_metrics, args=(client_tcp, cpu_rate, mem_rate), daemon=True).start()
+        threading.Thread(target=send_metrics, args=(client_tcp, ), daemon=True).start()
+        threading.Thread(target=send_alerts, args=(client_tcp, cpu_rate, mem_rate), daemon=True).start()
 
         time.sleep(60)
 
