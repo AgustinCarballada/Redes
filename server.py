@@ -7,7 +7,7 @@ KEY = "server123"
 UDP_PORT = 6063
 TCP_PORT = 9999
 cpu_rate = 30
-mem_rate = 80
+mem_rate = 90
 clients = {}
 
 
@@ -80,9 +80,8 @@ def client_handler(conn_socket: socket, client_id:int, addr):
 
 def admin_handler(connSocket: socket, addr):
     buffer = ""
-
-    connSocket.send("ADMIN_RESP\n".encode())
     connection_alive = True
+    connSocket.send("ADMIN_RESP\n".encode())
     try:
         while connection_alive:
             data = connSocket.recv(1024).decode()
@@ -99,7 +98,7 @@ def admin_handler(connSocket: socket, addr):
                     client_list = str(len(clients))
                     for cliente in clients:
                         client_list += " " + str(cliente)
-                    connSocket.send(("AGENTS " + client_list).encode())
+                    connSocket.send((f"AGENTS {client_list}\n").encode())
                 elif message.startswith("GET_PROC"):
                     (_, id) = message.split(" ")
                     id = int(id)
@@ -117,9 +116,8 @@ def admin_handler(connSocket: socket, addr):
                 elif message.startswith("GET_METRIC"):
                     (_, id, type) = message.split(" ")
                     id = int(id)
-                    message = f"MEASURMENTS {id} {type}"
+                    message = f"MEASURMENTS {id} {type}\n"
                     for i in clients[id][type]:
-                        print("holaa")
                         message +=  f" {i}"
                     print(message)
                     connSocket.send(message.encode())
