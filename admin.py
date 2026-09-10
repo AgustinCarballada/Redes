@@ -38,7 +38,6 @@ def response_thread(admin_tcp, addr):
             buffer += data
             while "\n" in buffer:
                 message, buffer = buffer.split("\n", 1)
-                print(buffer)
                 log_response(message, addr)
     except Exception:
         return

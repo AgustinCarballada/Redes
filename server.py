@@ -116,10 +116,10 @@ def admin_handler(connSocket: socket, addr):
                 elif message.startswith("GET_METRIC"):
                     (_, id, type) = message.split(" ")
                     id = int(id)
-                    message = f"MEASURMENTS {id} {type}\n"
+                    message = f"MEASURMENTS {id} {type}"
                     for i in clients[id][type]:
                         message +=  f" {i}"
-                    print(message)
+                    message += "\n"
                     connSocket.send(message.encode())
     except:
         return

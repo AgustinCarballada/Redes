@@ -36,7 +36,7 @@ def send_metrics(client_tcp):
     global connection_alive
     try:
         while connection_alive:
-            time.sleep(5)
+            time.sleep(15)
 
             cpu = psutil.cpu_percent()
             client_tcp.send(f"METRIC CPU {cpu}\n".encode())
