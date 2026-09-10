@@ -102,6 +102,9 @@ def admin_handler(connSocket: socket, addr):
                 elif message.startswith("GET_PROC"):
                     (_, id) = message.split(" ")
                     id = int(id)
+                    if id not in clients:
+                        connSocket.send("ERROR El cliente no existe\n".encode())
+                        continue
 
                     client_socket = clients[id]["socket"]
                     client_socket.send("GET_PROC\n".encode())

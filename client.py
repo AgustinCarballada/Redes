@@ -98,6 +98,8 @@ if __name__ == "__main__":
                 if message == "END":
                     client_tcp.send(f"END\n".encode())
                     connection_alive = False
+                else:
+                    print("ERROR")
 
             t1.join()
             t2.join()
