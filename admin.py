@@ -2,11 +2,12 @@ import threading
 from socket import *
 
 
-SERVER_PORT = 6063
+SERVER_PORT = 6046
 BROADCAST_IP = "255.255.255.255"
 KEY = "server123"
 
 connection_alive = False
+
 
 def log_response(message, addr):
     print(message, addr)
@@ -22,6 +23,10 @@ def get_proc(admin_tcp, id):
 
 def get_metric(admin_tcp, id, type):
     admin_tcp.send(f"GET_METRIC {id} {type}\n".encode())
+
+
+def end_connection(admin_tcp):
+    admin_tcp.send(f"END\n".encode())
 
 
 def response_thread(admin_tcp, addr):
@@ -78,15 +83,21 @@ if __name__ == "__main__":
 
     while connection_alive:
         message = input()
-        if message.startswith("L"):
-            list_agents(socket)
-        elif message.startswith("M"):
-            (_, agent_id, metric) = message.split(" ")
-            get_metric(socket, agent_id, metric)
-        elif message.startswith("P"):
-            (_, agent_id) = message.split(" ")
-            get_proc(socket, agent_id)
-        else:
+        try:
+            if message.startswith("L"):
+                list_agents(socket)
+            elif message.startswith("M"):
+                (_, agent_id, metric) = message.split(" ")
+                get_metric(socket, agent_id, metric)
+            elif message.startswith("P"):
+                (_, agent_id) = message.split(" ")
+                get_proc(socket, agent_id)
+            elif message == "END":
+                end_connection(socket)
+                break
+            else:
+                print("ERROR")
+        except:
             print("ERROR")
 
     t1.join()
