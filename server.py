@@ -1,18 +1,15 @@
 from socket import *
 import threading
 import time
-import random
 
+
+KEY = "server123"
 UDP_PORT = 6063
 TCP_PORT = 9999
-KEY = "server123"
-
-
-id = 0
-
 cpu_rate = 30
-mem_rate = 80
+mem_rate = 90
 clients = {}
+
 
 def log_response(message, addr):
     print(message, addr)
@@ -30,6 +27,7 @@ def udp_discover():
         else:
             server.sendto(("ERROR\n".encode()), addr)
 
+
 # TCP connection
 def update_value(array, value):
     for i in range(9, 0, -1):
@@ -37,19 +35,18 @@ def update_value(array, value):
     array[0] = value
     return array
 
-#
 
-def client_handler(connSocket: socket, id:int, addr):
-    connSocket.send("REG_RESP\n".encode())
+def client_handler(conn_socket: socket, client_id:int, addr):
+    conn_socket.send("REG_RESP\n".encode())
 
     buffer = ""
     connection_alive = True
     try:
         while connection_alive:
-            data = connSocket.recv(1024).decode()
+            data = conn_socket.recv(1024).decode()
             
             if not data:
-                connSocket.send("ERROR\n".encode())
+                conn_socket.send("ERROR\n".encode())
                 continue
             #TODO: Verificar con el profesor
 
@@ -62,38 +59,36 @@ def client_handler(connSocket: socket, id:int, addr):
       
                 if message.startswith("METRIC"):
                     (_, type, value) = message.split(" ")
-                    clients[id][type] = update_value(clients[id][type], value)
+                    clients[client_id][type] = update_value(clients[client_id][type], value)
                 elif message.startswith("ALERT"):
                     (_, type, value) = message.split(" ")
-                    clients[id][type] = update_value(clients[id][type], value)
+                    clients[client_id][type] = update_value(clients[client_id][type], value)
                 elif message.startswith("PROC"):
                     (_, message) = data.split(" ", 1)
-                    clients[id]["last_process"] = message
+                    clients[client_id]["last_process"] = message
                 elif message.startswith("END"):
                     connection_alive = False
                     break
                 else:
-                    connSocket.send("ERROR".encode())
+                    conn_socket.send("ERROR".encode())
     except:
         return
     finally:
-        del clients[id]
-        connSocket.close()
-
+        del clients[client_id]
+        conn_socket.close()
 
 
 def admin_handler(connSocket: socket, addr):
     buffer = ""
-
-    connSocket.send("ADMIN_RESP\n".encode())
     connection_alive = True
+    connSocket.send("ADMIN_RESP\n".encode())
     try:
         while connection_alive:
             data = connSocket.recv(1024).decode()
             if not data:
                 connSocket.send("ERROR\n".encode())
                 continue
-            #TODO : lo mismo
+            #TODO : lo mismo verificar con el profe
 
             buffer += data
             while "\n" in buffer:
@@ -103,7 +98,7 @@ def admin_handler(connSocket: socket, addr):
                     client_list = str(len(clients))
                     for cliente in clients:
                         client_list += " " + str(cliente)
-                    connSocket.send(("AGENTS " + client_list).encode())
+                    connSocket.send((f"AGENTS {client_list}\n").encode())
                 elif message.startswith("GET_PROC"):
                     (_, id) = message.split(" ")
                     id = int(id)
@@ -123,9 +118,8 @@ def admin_handler(connSocket: socket, addr):
                     id = int(id)
                     message = f"MEASURMENTS {id} {type}"
                     for i in clients[id][type]:
-                        print("holaa")
                         message +=  f" {i}"
-                    print(message)
+                    message += "\n"
                     connSocket.send(message.encode())
     except:
         return
@@ -180,19 +174,13 @@ if __name__=='__main__':
    # listener UDP
    udpThread = threading.Thread(target=udp_discover, daemon=True)
    # start TCP connection
-   tcpThread = threading.Thread(target=connect_agent , args=(id, ), daemon=True)
+   tcpThread = threading.Thread(target=connect_agent , args=(0, ), daemon=True)
 
    udpThread.start()
    tcpThread.start()
 
-
-
    udpThread.join()
    tcpThread.join()
 
-
-
-# • Implementar admin
-# • 
 
 
