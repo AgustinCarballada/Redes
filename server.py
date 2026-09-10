@@ -119,6 +119,12 @@ def admin_handler(connSocket: socket, addr):
                 elif message.startswith("GET_METRIC"):
                     (_, id, type) = message.split(" ")
                     id = int(id)
+                    if id not in clients:
+                        connSocket.send("ERROR El cliente no existe\n".encode())
+                        continue
+                    if type not in ("CPU", "MEM"):
+                        connSocket.send("ERROR Metrica invalida\n".encode())
+                        continue
                     message = f"MEASURMENTS {id} {type}"
                     for i in clients[id][type]:
                         message +=  f" {i}"
