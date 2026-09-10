@@ -4,9 +4,9 @@ import psutil
 import time
 
 
-SERVER_PORT = 6046
+SERVER_PORT = 6063
 BROADCAST_IP = "255.255.255.255"
-KEY = "1234"
+KEY = "server123"
 
 connection_alive = False
 

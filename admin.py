@@ -2,7 +2,7 @@ import threading
 from socket import *
 
 
-SERVER_PORT = 6046
+SERVER_PORT = 6063
 BROADCAST_IP = "255.255.255.255"
 KEY = "server123"
 
