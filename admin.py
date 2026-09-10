@@ -82,17 +82,23 @@ if __name__ == "__main__":
     t1.start()
 
     while connection_alive:
-        message = input()
+        message = input().strip()
+        partes = message.split(" ")
+        command = partes[0]
         try:
-            if message.startswith("L"):
+            if command == "L":
                 list_agents(socket)
-            elif message.startswith("M"):
-                (_, agent_id, metric) = message.split(" ")
-                get_metric(socket, agent_id, metric)
-            elif message.startswith("P"):
-                (_, agent_id) = message.split(" ")
-                get_proc(socket, agent_id)
-            elif message == "END":
+            elif command == "M":
+                if len(partes) != 3 or not partes[1].isdigit():
+                    print("ERROR Formato invalido. Uso: M <id> <CPU|MEM>")
+                    continue
+                get_metric(socket, partes[1], partes[2])
+            elif command == "P":
+                if len(partes) != 2 or not partes[1].isdigit():
+                    print("ERROR Formato invalido. Uso: P <id>")
+                    continue
+                get_proc(socket, partes[1])
+            elif command == "END":
                 end_connection(socket)
                 break
             else:

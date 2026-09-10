@@ -100,8 +100,11 @@ def admin_handler(connSocket: socket, addr):
                         client_list += " " + str(cliente)
                     connSocket.send((f"AGENTS {client_list}\n").encode())
                 elif message.startswith("GET_PROC"):
-                    (_, id) = message.split(" ")
-                    id = int(id)
+                    partes = message.split(" ")
+                    if len(partes) != 2 or not partes[1].isdigit():
+                        connSocket.send("ERROR Formato invalido\n".encode())
+                        continue
+                    id = int(partes[1])
                     if id not in clients:
                         connSocket.send("ERROR El cliente no existe\n".encode())
                         continue
@@ -117,8 +120,12 @@ def admin_handler(connSocket: socket, addr):
 
                     connSocket.send(message.encode())
                 elif message.startswith("GET_METRIC"):
-                    (_, id, type) = message.split(" ")
-                    id = int(id)
+                    partes = message.split(" ")
+                    if len(partes) != 3 or not partes[1].isdigit():
+                        connSocket.send("ERROR Formato invalido\n".encode())
+                        continue
+                    id = int(partes[1])
+                    type = partes[2]
                     if id not in clients:
                         connSocket.send("ERROR El cliente no existe\n".encode())
                         continue
