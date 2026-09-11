@@ -20,7 +20,6 @@ def response_thread(client_tcp:socket, addr):
         while connection_alive:
             response = client_tcp.recv(1024).decode()
 
-            # TODO : verify this
             if not response:
                 raise
 
@@ -32,8 +31,8 @@ def response_thread(client_tcp:socket, addr):
                 if message.startswith("GET_PROC"):
                     message = ""
                     for proc in psutil.process_iter(['pid', 'name']):
-                        message += f" {proc.info["pid"]}:{proc.info["name"]}"
-                    client_tcp.send(f"PROC{message}\n".encode())
+                        message += f" {proc.info['pid']}:{proc.info['name']},"
+                    client_tcp.send(f"PROC{message[:-1]}\n".encode())
 
     except Exception:
         if connection_alive:
@@ -45,7 +44,7 @@ def send_metrics(client_tcp):
     global connection_alive
     try:
         while connection_alive:
-            time.sleep(5)
+            time.sleep(15)
 
             cpu = psutil.cpu_percent()
             client_tcp.send(f"METRIC CPU {cpu}\n".encode())
@@ -89,12 +88,19 @@ def terminal_thread(client_tcp):
 def udp_discover():
     client = socket(AF_INET, SOCK_DGRAM)
     client.setsockopt(SOL_SOCKET, SO_BROADCAST, 1)
-    client.settimeout(1)
-    client.sendto("DISCOVER\n".encode(), (BROADCAST_IP, SERVER_PORT))
+    client.settimeout(2)
 
-    try:
-        message, upd_addr = client.recvfrom(1024)
-    except TimeoutError:
+    message = None
+    for trial in range(3):
+        client.sendto("DISCOVER\n".encode(), (BROADCAST_IP, SERVER_PORT))
+        try:
+            message, upd_addr = client.recvfrom(1024)
+            break
+        except TimeoutError:
+            print(f"[UDP] ERROR 503 [SERVICE UNAVAILABLE]")
+
+    client.close()
+    if message is None:
         raise TimeoutError
 
     print_response(message, upd_addr)

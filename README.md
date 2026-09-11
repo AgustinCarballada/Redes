@@ -10,9 +10,11 @@ python cliente_comun.py    # en cada máquina a monitorear
 python cliente_admin.py     # en la consola de administración
 ```
 
+Al iniciar, cada cliente descubre al servidor por broadcast UDP haciendo hasta 3 intentos con 2 segundos de espera cada uno. Si ninguno recibe respuesta, el cliente termina con `ERROR 504 [TIMEOUT ERROR]`.
+
 ## Agente cliente (`cliente_comun.py`)
 
-El cliente trabaja solo: cada 5 segundos manda métricas de CPU y memoria, cada 1 segundo revisa si superan el umbral que le dio el servidor y manda alertas, y responde con la lista de procesos cuando el servidor se la pide.
+El cliente trabaja solo: cada 15 segundos manda métricas de CPU y memoria, cada 1 segundo revisa si superan el umbral que le dio el servidor y manda alertas, y responde con la lista de procesos cuando el servidor se la pide.
 
 La terminal del cliente acepta un único comando:
 
@@ -24,11 +26,11 @@ Cualquier otro texto se envía tal cual al servidor, que responde `ERROR 400 [BA
 
 Mensajes que el cliente envía por sí solo:
 
-| Mensaje | Cuándo |
-|---|---|
-| `METRIC CPU <valor>` / `METRIC MEM <valor>` | Cada 5 segundos. |
+| Mensaje | Cuándo                                             |
+|---|----------------------------------------------------|
+| `METRIC CPU <valor>` / `METRIC MEM <valor>` | Cada 15 segundos.                                  |
 | `ALERT CPU <valor>` / `ALERT MEM <valor>` | Cada 1 segundo, solo si el valor supera el umbral. |
-| `PROC <pid>:<nombre> <pid>:<nombre> ...` | En respuesta a un `GET_PROC` del servidor. |
+| `PROC <pid>:<nombre>, <pid>:<nombre>, ...` | En respuesta a un `GET_PROC` del servidor.         |
 
 ## Agente admin (`cliente_admin.py`)
 
@@ -37,12 +39,12 @@ La terminal del admin traduce comandos cortos al protocolo del servidor.
 | Comando | Se envía como | Respuesta del servidor |
 |---|---|---|
 | `L` | `LIST_AGENTS` | `AGENTS <cantidad> <id> <id> ...` |
-| `P <id>` | `GET_PROC <id>` | `PROC <id> <pid>:<nombre> ...` o `ERROR 504 [AGENT TIMEOUT]` |
-| `M <id> CPU` | `GET_METRIC <id> CPU` | `MEASURMENTS <id> CPU <v1> ... <v10>` |
-| `M <id> MEM` | `GET_METRIC <id> MEM` | `MEASURMENTS <id> MEM <v1> ... <v10>` |
+| `P <id>` | `GET_PROC <id>` | `PROC <id> <pid>:<nombre>, <pid>:<nombre>, ...` o `ERROR 504 [AGENT TIMEOUT]` |
+| `M <id> CPU` | `GET_METRIC <id> CPU` | `MEASUREMENTS <id> CPU <cantidad> <v1> ... <vn>` |
+| `M <id> MEM` | `GET_METRIC <id> MEM` | `MEASUREMENTS <id> MEM <cantidad> <v1> ... <vn>` |
 | `END` | `END` | Cierra la conexión y termina el proceso. |
 
-Las métricas devuelven las últimas 10 mediciones, la más reciente primero.
+Las métricas devuelven hasta las últimas 10 mediciones recibidas, la más reciente primero, precedidas por la cantidad de valores incluidos.
 
 Errores posibles:
 

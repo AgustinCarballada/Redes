@@ -19,7 +19,6 @@ def response_thread(admin_tcp, addr):
         while connection_alive:
             response = admin_tcp.recv(1024).decode()
 
-            # TODO : verify this
             if not response:
                 raise
 
@@ -37,12 +36,19 @@ def response_thread(admin_tcp, addr):
 def udp_discover():
     client = socket(AF_INET, SOCK_DGRAM)
     client.setsockopt(SOL_SOCKET, SO_BROADCAST, 1)
-    client.settimeout(1)
-    client.sendto("DISCOVER\n".encode(), (BROADCAST_IP, SERVER_PORT))
+    client.settimeout(2)
 
-    try:
-        message, udp_addr = client.recvfrom(1024)
-    except TimeoutError:
+    message = None
+    for trial in range(3):
+        client.sendto("DISCOVER\n".encode(), (BROADCAST_IP, SERVER_PORT))
+        try:
+            message, udp_addr = client.recvfrom(1024)
+            break
+        except TimeoutError:
+            print(f"[UDP] ERROR 503 [SERVICE UNAVAILABLE]")
+
+    client.close()
+    if message is None:
         raise TimeoutError
 
     print_response(message, udp_addr)

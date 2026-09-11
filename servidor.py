@@ -31,7 +31,7 @@ def parse_get_proc(client_id):
     client_socket.send("GET_PROC\n".encode())
     time.sleep(1)
     if clients[client_id]["last_process"]:
-        message = f"PROC {client_id} {clients[client_id]["last_process"]}\n"
+        message = f"PROC {client_id} {clients[client_id]['last_process']}\n"
         clients[client_id]["last_process"] = ""
     else:
         message = "ERROR 504 [AGENT TIMEOUT]\n"
@@ -39,7 +39,7 @@ def parse_get_proc(client_id):
 
 
 def parse_metrics(client_id, metric_type):
-    message = f"MEASURMENTS {client_id} {metric_type}"
+    message = f"MEASUREMENTS {client_id} {metric_type} {len(clients[client_id][metric_type])}"
     for i in clients[client_id][metric_type]:
         message += f" {i}"
     return f"{message}\n"
@@ -68,9 +68,7 @@ def client_handler(conn_socket: socket, client_id:int, addr):
         while connection_alive:
             data = conn_socket.recv(1024).decode()
 
-            # TODO : verify this
             if not data:
-                conn_socket.send("ERROR 500 [COMMUNICATION ERROR]\n".encode())
                 break
 
             buffer += data
@@ -104,11 +102,8 @@ def admin_handler(conn_socket: socket, addr):
         while connection_alive:
             data = conn_socket.recv(1024).decode()
 
-            # TODO : lo mismo verificar con el profe
             if not data:
-                conn_socket.send("ERROR 500 [COMMUNICATION ERROR]\n".encode())
                 break
-
 
             buffer += data
             while "\n" in buffer:
@@ -162,8 +157,8 @@ def connect_agent(id):
             if key == KEY:
                 clients[id] = {
                     "socket": connection,
-                    "CPU": [0] * 10,
-                    "MEM": [0] * 10,
+                    "CPU": [],
+                    "MEM": [],
                     "last_process": ""
                 }
                 threading.Thread(
@@ -189,16 +184,19 @@ def connect_agent(id):
 
 # main
 if __name__=='__main__':
-   # UDP listener
-   udpThread = threading.Thread(target=udp_discover, daemon=True)
-   # TCP connection
-   tcpThread = threading.Thread(target=connect_agent , args=(0, ), daemon=True)
+    # UDP listener
+    udpThread = threading.Thread(target=udp_discover, daemon=True)
+    # TCP connection
+    tcpThread = threading.Thread(target=connect_agent , args=(0, ), daemon=True)
 
-   udpThread.start()
-   tcpThread.start()
+    udpThread.start()
+    tcpThread.start()
 
-   while not input() == "END":
+    while not input() == "END":
        time.sleep(1)
+
+    print("wait there, shooting down ..")
+    time.sleep(1)
 
 
 

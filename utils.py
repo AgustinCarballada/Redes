@@ -3,7 +3,7 @@ import datetime
 
 def print_response(message, addr):
     if type(message) == bytes:
-        print(f"[UDP] {message.decode().split("\n")[0]}, HOST: {addr}")
+        print(f"[UDP] {message.decode().split('\n')[0]}, HOST: {addr}")
     else:
         print(f"[TCP] {message}, HOST: {addr}")
 
@@ -29,18 +29,8 @@ def parse_admin_message(message):
         return f"{message}\n"
 
 
-def print_response(message, addr):
-    if type(message) == bytes:
-        print(f"[UDP] {message.decode().split("\n")[0][:1024]}, HOST: {addr}")
-    else:
-        print(f"[TCP] {message[:1024]}, HOST: {addr}")
-
-
 def update_value(array, value):
-    for i in range(9, 0, -1):
-        array[i] = array[i - 1]
-    array[0] = value
-    return array
+    return [value] + array[:9]
 
 
 def parse_params(message):
