@@ -10,7 +10,10 @@ connection_alive = False
 
 
 def log_response(message, addr):
-    print(message, addr)
+    if type(message) == bytes:
+        print(f"[UDP] {message.decode().split("\n")[0]}, HOST: {addr}")
+    else:
+        print(f"[TCP] {message}, HOST: {addr}")
 
 
 def list_agents(admin_tcp):
@@ -35,19 +38,21 @@ def response_thread(admin_tcp, addr):
     connection_alive = True
     try:
         while connection_alive:
-            data = admin_tcp.recv(1024).decode()
-            if not data:
-                admin_tcp.send("ERROR\n".encode())
-                continue
+            response = admin_tcp.recv(1024).decode()
+
             # TODO : lo mismo verificar con el profe
-            buffer += data
+            if not response:
+                raise
+
+            buffer += response
             while "\n" in buffer:
                 message, buffer = buffer.split("\n", 1)
                 log_response(message, addr)
+
     except Exception:
-        return
-    finally:
         connection_alive = False
+        return
+
 
 
 def udp_discover():
@@ -55,8 +60,10 @@ def udp_discover():
     client.setsockopt(SOL_SOCKET, SO_BROADCAST, 1)
     client.sendto("DISCOVER\n".encode(), (BROADCAST_IP, SERVER_PORT))
     message , (server_ip, server_port) = client.recvfrom(1024)
+    addr = (server_ip, int(server_port))
+    log_response(message, addr)
+
     message = message.decode()
-    log_response(message, (server_ip, server_port))
     
     if message.startswith("SERVER"):
         (_, cpu_rate, mem_rate, tcp_port) = message.split(" ")
@@ -68,10 +75,10 @@ def udp_discover():
         connection_alive = True
 
         admin_tcp.send(f"ADMIN {KEY}\n".encode())
-        message = admin_tcp.recv(1024)
+        message = admin_tcp.recv(1024).decode().split("\n")[0]
         log_response(message, (server_ip, server_port))
 
-        if message.decode().startswith("ADMIN_RESP"):
+        if message.startswith("ADMIN_RESP"):
             return admin_tcp, (server_ip, server_port)
 
 

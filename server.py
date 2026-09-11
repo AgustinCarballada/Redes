@@ -2,6 +2,7 @@ from socket import *
 import threading
 import time
 
+from client import connection_alive
 
 KEY = "server123"
 UDP_PORT = 6063
@@ -10,12 +11,56 @@ cpu_rate = 30
 mem_rate = 90
 clients = {}
 
-
+# UTILS
 def log_response(message, addr):
-    print(message, addr)
+    if type(message) == bytes:
+        print(f"[UDP] {message.decode().split("\n")[0]}, HOST: {addr}")
+    else:
+        print(f"[TCP] {message}, HOST: {addr}")
 
 
-# UDP connection
+def update_value(array, value):
+    for i in range(9, 0, -1):
+        array[i] = array[i - 1]
+    array[0] = value
+    return array
+
+
+def parse_client_list():
+    client_list = str(len(clients))
+    for client in clients:
+        client_list += f" {client}"
+    return client_list
+
+
+def parse_get_proc(client_id):
+    client_socket = clients[client_id]["socket"]
+    client_socket.send("GET_PROC\n".encode())
+    time.sleep(1)
+    if clients[client_id]["last_process"]:
+        message = f"PROC {client_id} {clients[client_id]["last_process"]}"
+        clients[client_id]["last_process"] = ""
+    else:
+        message = "ERROR 504 [AGENT TIMEOUT]\n"
+    return message
+
+
+def parse_metrics(client_id, metric_type):
+    message = f"MEASURMENTS {client_id} {metric_type}"
+    for i in clients[client_id][metric_type]:
+        message += f" {i}"
+    return f"{message}\n"
+
+
+def parse_params(message):
+    parts = message.split(" ")
+    if len(parts) == 1:
+        return (parts[0], "", "")
+    elif len(parts) == 2:
+        return (parts[0], parts[1], "")
+    return (parts[0], parts[1], parts[2])
+
+# UDP CONNECTION
 def udp_discover():
     server = socket(AF_INET, SOCK_DGRAM)
     server.bind(("", UDP_PORT))
@@ -25,17 +70,22 @@ def udp_discover():
         if data.decode().startswith("DISCOVER"):
             server.sendto(f"SERVER {cpu_rate} {mem_rate} {TCP_PORT}\n".encode(), addr)
         else:
-            server.sendto(("ERROR\n".encode()), addr)
+            server.sendto(("ERROR 400 [BAD REQUEST]\n".encode()), addr)
 
 
-# TCP connection
-def update_value(array, value):
-    for i in range(9, 0, -1):
-        array[i] = array[i - 1]
-    array[0] = value
-    return array
+def is_number(number):
+    try:
+        float(number)
+        return True
+    except ValueError:
+        try:
+            int(number)
+            return True
+        except ValueError:
+            return False
 
 
+# TCP CONNECTION
 def client_handler(conn_socket: socket, client_id:int, addr):
     conn_socket.send("REG_RESP\n".encode())
 
@@ -44,103 +94,79 @@ def client_handler(conn_socket: socket, client_id:int, addr):
     try:
         while connection_alive:
             data = conn_socket.recv(1024).decode()
-            
-            if not data:
-                conn_socket.send("ERROR\n".encode())
-                continue
-            #TODO: Verificar con el profesor
 
+            # TODO : lo mismo verificar con el profe
+            if not data:
+                conn_socket.send("ERROR 500 [COMMUNICATION ERROR]\n".encode())
+                break
 
             buffer += data
             while "\n" in buffer:
-
                 message, buffer = buffer.split("\n", 1)
                 log_response(message, addr)
-      
-                if message.startswith("METRIC"):
-                    (_, type, value) = message.split(" ")
-                    clients[client_id][type] = update_value(clients[client_id][type], value)
-                elif message.startswith("ALERT"):
-                    (_, type, value) = message.split(" ")
-                    clients[client_id][type] = update_value(clients[client_id][type], value)
-                elif message.startswith("PROC"):
-                    (_, message) = data.split(" ", 1)
-                    clients[client_id]["last_process"] = message
-                elif message.startswith("END"):
+                (command, param1, param2) = parse_params(message)
+                if command == "METRIC" and param1 in ("MEM", "CPU") and is_number(param2):
+                    clients[client_id][param1] = update_value(clients[client_id][param1], param2)
+                elif command == "ALERT" and param1 in ("MEM", "CPU") and is_number(param2):
+                    clients[client_id][param1] = update_value(clients[client_id][param1], param2)
+                elif command == "PROC" and param1 and not param2:
+                    clients[client_id]["last_process"] = param1
+                elif command == "END" and not param1 and not param2:
                     connection_alive = False
                     break
                 else:
-                    conn_socket.send("ERROR".encode())
+                    conn_socket.send("ERROR 400 [BAD REQUEST]\n".encode())
     except:
-        return
+        pass
     finally:
         del clients[client_id]
         conn_socket.close()
 
 
-def admin_handler(connSocket: socket, addr):
+def admin_handler(conn_socket: socket, addr):
     buffer = ""
     connection_alive = True
-    connSocket.send("ADMIN_RESP\n".encode())
+    conn_socket.send("ADMIN_RESP\n".encode())
     try:
         while connection_alive:
-            data = connSocket.recv(1024).decode()
+            data = conn_socket.recv(1024).decode()
+
+            # TODO : lo mismo verificar con el profe
             if not data:
-                connSocket.send("ERROR\n".encode())
-                continue
-            #TODO : lo mismo verificar con el profe
+                conn_socket.send("ERROR 500 [COMMUNICATION ERROR]\n".encode())
+                break
+
 
             buffer += data
             while "\n" in buffer:
                 message, buffer = buffer.split("\n", 1)
                 log_response(message, addr)
-                if message.startswith("LIST_AGENTS"):
-                    client_list = str(len(clients))
-                    for cliente in clients:
-                        client_list += " " + str(cliente)
-                    connSocket.send((f"AGENTS {client_list}\n").encode())
-                elif message.startswith("GET_PROC"):
-                    partes = message.split(" ")
-                    if len(partes) != 2 or not partes[1].isdigit():
-                        connSocket.send("ERROR Formato invalido\n".encode())
-                        continue
-                    id = int(partes[1])
-                    if id not in clients:
-                        connSocket.send("ERROR El cliente no existe\n".encode())
-                        continue
 
-                    client_socket = clients[id]["socket"]
-                    client_socket.send("GET_PROC\n".encode())
-                    time.sleep(1) 
-                    if clients[id]["last_process"]:
-                        message = f"PROC {id} {clients[id]["last_process"]}"
-                        clients[id]["last_process"] = ""
-                    else:
-                        message = "ERROR\n"  
-
-                    connSocket.send(message.encode())
-                elif message.startswith("GET_METRIC"):
-                    partes = message.split(" ")
-                    if len(partes) != 3 or not partes[1].isdigit():
-                        connSocket.send("ERROR Formato invalido\n".encode())
+                (command, param1, param2) = message.split(" ")
+                if command == "LIST_AGENTS" and not param1 and not param2:
+                    client_list = parse_client_list()
+                    conn_socket.send((f"AGENTS {client_list}\n").encode())
+                elif command == "GET_PROC" and is_number(param1) and not param2 :
+                    client_id = int(param1)
+                    message = parse_get_proc(client_id)
+                    conn_socket.send(message.encode())
+                elif command == "GET_METRIC" and is_number(param1) and param2 in ("MEM", "CPU"):
+                    client_id = int(param1)
+                    metric_type = param2
+                    if client_id not in clients:
+                        conn_socket.send("ERROR 404 [NOT FOUND]\n".encode())
                         continue
-                    id = int(partes[1])
-                    type = partes[2]
-                    if id not in clients:
-                        connSocket.send("ERROR El cliente no existe\n".encode())
-                        continue
-                    if type not in ("CPU", "MEM"):
-                        connSocket.send("ERROR Metrica invalida\n".encode())
-                        continue
-                    message = f"MEASURMENTS {id} {type}"
-                    for i in clients[id][type]:
-                        message +=  f" {i}"
-                    message += "\n"
-                    connSocket.send(message.encode())
+                    message = parse_metrics(client_id, metric_type)
+                    conn_socket.send(message.encode())
+                elif command == "END":
+                    connection_alive = False
+                    break
+                else:
+                    conn_socket.send("ERROR 400 [BAD REQUEST]\n".encode())
     except:
-        return
+        pass
     finally:
-        connSocket.close()
+        conn_socket.close()
 
 
 def connect_agent(id):
@@ -154,6 +180,7 @@ def connect_agent(id):
         connection, addr = master.accept()
         message = connection.recv(1024).decode().strip()
         log_response(message, addr)
+
         if message.startswith("REGISTER"):
             (_, key) = message.strip().split(" ")
             if key == KEY:
@@ -169,8 +196,7 @@ def connect_agent(id):
                 ).start()
                 id += 1
             else:
-                connection.send("ERROR\n".encode())
-
+                connection.send("ERROR 403 [FORBIDDEN]\n".encode())
 
         elif message.startswith("ADMIN"):
             (_, key) = message.strip().split(" ")
@@ -181,15 +207,15 @@ def connect_agent(id):
                     daemon = True
                 ).start()
             else:
-                connection.send("ERROR\n".encode())
+                connection.send("ERROR 403 [FORBIDDEN]\n".encode())
 
 
 # main
 if __name__=='__main__':
 
-   # listener UDP
+   # UDP listener
    udpThread = threading.Thread(target=udp_discover, daemon=True)
-   # start TCP connection
+   # TCP connection
    tcpThread = threading.Thread(target=connect_agent , args=(0, ), daemon=True)
 
    udpThread.start()
