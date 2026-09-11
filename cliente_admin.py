@@ -1,40 +1,14 @@
-from socket import *
-import threading
 import time
+import threading
+from socket import *
+
+from utils import print_response, parse_admin_message
 
 
 SERVER_PORT = 6063
 BROADCAST_IP = "255.255.255.255"
 KEY = "server123"
 connection_alive = False
-
-
-def log_response(message, addr):
-    if type(message) == bytes:
-        print(f"[UDP] {message.decode().split("\n")[0]}, HOST: {addr}")
-    else:
-        print(f"[TCP] {message}, HOST: {addr}")
-
-
-def parse_message(message):
-    parts = message.split(" ")
-    if len(parts) == 1:
-        params = (parts[0], "", "")
-    elif len(parts) == 2:
-        params = (parts[0], parts[1], "")
-    else:
-        params = (parts[0], parts[1], parts[2])
-
-    if params[0] == "END":
-        return "END\n"
-    elif params[0] == "L":
-        return "LIST_AGENTS\n"
-    elif params[0] == "P":
-        return f"GET_PROC {params[1]}\n"
-    elif params[0] == "M":
-        return f"GET_METRIC {params[1]} {params[2]}\n"
-    else:
-        return f"{message}\n"
 
 
 def response_thread(admin_tcp, addr):
@@ -45,14 +19,14 @@ def response_thread(admin_tcp, addr):
         while connection_alive:
             response = admin_tcp.recv(1024).decode()
 
-            # TODO : lo mismo verificar con el profe
+            # TODO : verify this
             if not response:
                 raise
 
             buffer += response
             while "\n" in buffer:
                 message, buffer = buffer.split("\n", 1)
-                log_response(message, addr)
+                print_response(message, addr)
 
     except Exception:
         if connection_alive:
@@ -71,7 +45,7 @@ def udp_discover():
     except TimeoutError:
         raise TimeoutError
 
-    log_response(message, udp_addr)
+    print_response(message, udp_addr)
 
     if message.decode().startswith("SERVER"):
         (_, cpu_rate, mem_rate, tcp_port) = message.decode().split(" ")
@@ -85,7 +59,7 @@ def udp_discover():
 
         admin_tcp.send(f"ADMIN {KEY}\n".encode())
         message = admin_tcp.recv(1024).decode().split("\n")[0]
-        log_response(message, tcp_addr)
+        print_response(message, tcp_addr)
 
         if message.startswith("ADMIN_RESP"):
             return admin_tcp, tcp_addr, True
@@ -96,7 +70,7 @@ def terminal_thread(client_tcp):
     try:
         while connection_alive:
             message = input()
-            request = parse_message(message)
+            request = parse_admin_message(message)
             client_tcp.send(request.encode())
             if message == "END":
                 connection_alive = False

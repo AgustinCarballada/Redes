@@ -3,18 +3,13 @@ import threading
 import psutil
 import time
 
+from utils import print_response
+
 
 SERVER_PORT = 6063
 BROADCAST_IP = "255.255.255.255"
 KEY = "server123"
 connection_alive = False
-
-
-def log_response(message, addr):
-    if type(message) == bytes:
-        print(f"[UDP] {message.decode().split("\n")[0]}, HOST: {addr}")
-    else:
-        print(f"[TCP] {message}, HOST: {addr}")
 
 
 def response_thread(client_tcp:socket, addr):
@@ -25,14 +20,14 @@ def response_thread(client_tcp:socket, addr):
         while connection_alive:
             response = client_tcp.recv(1024).decode()
 
-            # TODO : lo mismo verificar con el profe
+            # TODO : verify this
             if not response:
                 raise
 
             buffer += response
             while "\n" in buffer:
                 message, buffer = buffer.split("\n", 1)
-                log_response(message, addr)
+                print_response(message, addr)
 
                 if message.startswith("GET_PROC"):
                     message = ""
@@ -102,7 +97,7 @@ def udp_discover():
     except TimeoutError:
         raise TimeoutError
 
-    log_response(message, upd_addr)
+    print_response(message, upd_addr)
 
     if message.decode().startswith("SERVER"):
         (_, cpu_rate, mem_rate, tcp_port) = message.decode().split(" ")
@@ -118,7 +113,7 @@ def udp_discover():
 
         client_tcp.send(f"REGISTER {KEY}\n".encode())
         message = client_tcp.recv(1024).decode().split("\n")[0]
-        log_response(message, tcp_addr)
+        print_response(message, tcp_addr)
 
         if message.startswith("REG_RESP"):
             return client_tcp, tcp_addr, True, cpu_rate, mem_rate
