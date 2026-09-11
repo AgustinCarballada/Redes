@@ -1,11 +1,11 @@
-import threading
 from socket import *
+import threading
+import time
 
 
 SERVER_PORT = 6063
 BROADCAST_IP = "255.255.255.255"
 KEY = "server123"
-
 connection_alive = False
 
 
@@ -16,20 +16,25 @@ def log_response(message, addr):
         print(f"[TCP] {message}, HOST: {addr}")
 
 
-def list_agents(admin_tcp):
-    admin_tcp.send("LIST_AGENTS\n".encode())
+def parse_message(message):
+    parts = message.split(" ")
+    if len(parts) == 1:
+        params = (parts[0], "", "")
+    elif len(parts) == 2:
+        params = (parts[0], parts[1], "")
+    else:
+        params = (parts[0], parts[1], parts[2])
 
-
-def get_proc(admin_tcp, id):
-    admin_tcp.send(f"GET_PROC {id}\n".encode())
-
-
-def get_metric(admin_tcp, id, type):
-    admin_tcp.send(f"GET_METRIC {id} {type}\n".encode())
-
-
-def end_connection(admin_tcp):
-    admin_tcp.send(f"END\n".encode())
+    if params[0] == "END":
+        return "END\n"
+    elif params[0] == "L":
+        return "LIST_AGENTS\n"
+    elif params[0] == "P":
+        return f"GET_PROC {params[1]}\n"
+    elif params[0] == "M":
+        return f"GET_METRIC {params[1]} {params[2]}\n"
+    else:
+        return f"{message}\n"
 
 
 def response_thread(admin_tcp, addr):
@@ -50,71 +55,77 @@ def response_thread(admin_tcp, addr):
                 log_response(message, addr)
 
     except Exception:
-        connection_alive = False
-        return
-
+        if connection_alive:
+            print("[TCP] ERROR 500 [COMMUNICATION ERROR]")
+            connection_alive = False
 
 
 def udp_discover():
     client = socket(AF_INET, SOCK_DGRAM)
     client.setsockopt(SOL_SOCKET, SO_BROADCAST, 1)
+    client.settimeout(1)
     client.sendto("DISCOVER\n".encode(), (BROADCAST_IP, SERVER_PORT))
-    message , (server_ip, server_port) = client.recvfrom(1024)
-    addr = (server_ip, int(server_port))
-    log_response(message, addr)
 
-    message = message.decode()
-    
-    if message.startswith("SERVER"):
-        (_, cpu_rate, mem_rate, tcp_port) = message.split(" ")
+    try:
+        message, udp_addr = client.recvfrom(1024)
+    except TimeoutError:
+        raise TimeoutError
+
+    log_response(message, udp_addr)
+
+    if message.decode().startswith("SERVER"):
+        (_, cpu_rate, mem_rate, tcp_port) = message.decode().split(" ")
+        tcp_addr = (udp_addr[0], int(tcp_port))
         global connection_alive
 
         # TCP connection
         admin_tcp = socket(AF_INET, SOCK_STREAM)
-        admin_tcp.connect((server_ip, int(tcp_port)))
+        admin_tcp.connect(tcp_addr)
         connection_alive = True
 
         admin_tcp.send(f"ADMIN {KEY}\n".encode())
         message = admin_tcp.recv(1024).decode().split("\n")[0]
-        log_response(message, (server_ip, server_port))
+        log_response(message, tcp_addr)
 
         if message.startswith("ADMIN_RESP"):
-            return admin_tcp, (server_ip, server_port)
+            return admin_tcp, tcp_addr, True
+    return _, _, False
+
+def terminal_thread(client_tcp):
+    global connection_alive
+    try:
+        while connection_alive:
+            message = input()
+            request = parse_message(message)
+            client_tcp.send(request.encode())
+            if message == "END":
+                connection_alive = False
+                print("wait there, shooting down ..")
+    except:
+        pass
 
 
 if __name__ == "__main__":
+    try:
+        socket, addr, ok = udp_discover()
 
-    socket, addr = udp_discover()
-    t1 = threading.Thread(target=response_thread, args=(socket, addr), daemon=True)
-    t1.start()
+        if ok:
+            t1 = threading.Thread(target=response_thread, args=(socket, addr), daemon=True)
+            t2 = threading.Thread(target=terminal_thread, args=(socket,), daemon=True)
 
-    while connection_alive:
-        message = input().strip()
-        partes = message.split(" ")
-        command = partes[0]
-        try:
-            if command == "L":
-                list_agents(socket)
-            elif command == "M":
-                if len(partes) != 3 or not partes[1].isdigit():
-                    print("ERROR Formato invalido. Uso: M <id> <CPU|MEM>")
-                    continue
-                get_metric(socket, partes[1], partes[2])
-            elif command == "P":
-                if len(partes) != 2 or not partes[1].isdigit():
-                    print("ERROR Formato invalido. Uso: P <id>")
-                    continue
-                get_proc(socket, partes[1])
-            elif command == "END":
-                end_connection(socket)
-                break
-            else:
-                print("ERROR")
-        except:
-            print("ERROR")
+            t1.start()
+            t2.start()
 
-    t1.join()
-    socket.close()
+            while connection_alive:
+                time.sleep(1)
+
+            socket.close()
+
+    except TimeoutError:
+        print("[UDP] ERROR 504 [TIMEOUT ERROR]")
+
+
+
 
 
 

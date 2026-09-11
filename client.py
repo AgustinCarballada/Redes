@@ -91,8 +91,7 @@ def terminal_thread(client_tcp):
         pass
 
 
-if __name__ == "__main__":
-
+def udp_discover():
     client = socket(AF_INET, SOCK_DGRAM)
     client.setsockopt(SOL_SOCKET, SO_BROADCAST, 1)
     client.settimeout(1)
@@ -100,38 +99,54 @@ if __name__ == "__main__":
 
     try:
         message, upd_addr = client.recvfrom(1024)
-        log_response(message, upd_addr)
+    except TimeoutError:
+        raise TimeoutError
 
-        if message.decode().startswith("SERVER"):
-            (_, cpu_rate, mem_rate, tcp_port) = message.decode().split(" ")
-            cpu_rate = int(cpu_rate)
-            mem_rate = int(mem_rate)
-            tcp_addr = (upd_addr[0], int(tcp_port))
+    log_response(message, upd_addr)
 
-            # TCP connection
-            client_tcp = socket(AF_INET, SOCK_STREAM)
-            client_tcp.connect(tcp_addr)
-            connection_alive = True
+    if message.decode().startswith("SERVER"):
+        (_, cpu_rate, mem_rate, tcp_port) = message.decode().split(" ")
+        cpu_rate = int(cpu_rate)
+        mem_rate = int(mem_rate)
+        tcp_addr = (upd_addr[0], int(tcp_port))
+        global connection_alive
 
-            client_tcp.send(f"REGISTER {KEY}\n".encode())
-            message = client_tcp.recv(1024)
-            log_response(message, tcp_addr)
-            if message.decode().startswith("REG_RESP"):
+        # TCP connection
+        client_tcp = socket(AF_INET, SOCK_STREAM)
+        client_tcp.connect(tcp_addr)
+        connection_alive = True
 
-                t1 = threading.Thread(target=response_thread, args=(client_tcp, tcp_addr,), daemon=True)
-                t2 = threading.Thread(target=send_metrics, args=(client_tcp,), daemon=True)
-                t3 = threading.Thread(target=send_alerts, args=(client_tcp, cpu_rate, mem_rate), daemon=True)
-                t4 = threading.Thread(target=terminal_thread, args=(client_tcp,), daemon=True)
+        client_tcp.send(f"REGISTER {KEY}\n".encode())
+        message = client_tcp.recv(1024).decode().split("\n")[0]
+        log_response(message, tcp_addr)
 
-                t1.start()
-                t2.start()
-                t3.start()
-                t4.start()
+        if message.startswith("REG_RESP"):
+            return client_tcp, tcp_addr, True, cpu_rate, mem_rate
+    return _, _, False, _, _
 
-                while connection_alive:
-                    time.sleep(1)
+if __name__ == "__main__":
 
-            client_tcp.close()
+    try:
+        socket, addr, ok, cpu_rate, mem_rate = udp_discover()
+
+        if ok:
+            t1 = threading.Thread(target=response_thread, args=(socket, addr,), daemon=True)
+            t2 = threading.Thread(target=send_metrics, args=(socket,), daemon=True)
+            t3 = threading.Thread(target=send_alerts, args=(socket, cpu_rate, mem_rate), daemon=True)
+            t4 = threading.Thread(target=terminal_thread, args=(socket,), daemon=True)
+
+            t1.start()
+            t2.start()
+            t3.start()
+            t4.start()
+
+            while connection_alive:
+                time.sleep(1)
+
+            socket.close()
+
     except TimeoutError:
         print("[UDP] ERROR 504 [TIMEOUT ERROR]")
+
+
 

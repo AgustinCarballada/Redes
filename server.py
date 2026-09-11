@@ -2,8 +2,6 @@ from socket import *
 import threading
 import time
 
-from client import connection_alive
-
 KEY = "server123"
 UDP_PORT = 6063
 TCP_PORT = 9999
@@ -14,9 +12,9 @@ clients = {}
 # UTILS
 def log_response(message, addr):
     if type(message) == bytes:
-        print(f"[UDP] {message.decode().split("\n")[0]}, HOST: {addr}")
+        print(f"[UDP] {message.decode().split("\n")[0][:1024]}, HOST: {addr}")
     else:
-        print(f"[TCP] {message}, HOST: {addr}")
+        print(f"[TCP] {message[:1024]}, HOST: {addr}")
 
 
 def update_value(array, value):
@@ -38,7 +36,7 @@ def parse_get_proc(client_id):
     client_socket.send("GET_PROC\n".encode())
     time.sleep(1)
     if clients[client_id]["last_process"]:
-        message = f"PROC {client_id} {clients[client_id]["last_process"]}"
+        message = f"PROC {client_id} {clients[client_id]["last_process"]}\n"
         clients[client_id]["last_process"] = ""
     else:
         message = "ERROR 504 [AGENT TIMEOUT]\n"
@@ -54,11 +52,11 @@ def parse_metrics(client_id, metric_type):
 
 def parse_params(message):
     parts = message.split(" ")
-    if len(parts) == 1:
-        return (parts[0], "", "")
-    elif len(parts) == 2:
-        return (parts[0], parts[1], "")
-    return (parts[0], parts[1], parts[2])
+    command = parts[0]
+    if command == "PROC":
+        return (command, " ".join(parts[1:]), "")
+    parts += ["", ""]
+    return (command, parts[1], parts[2])
 
 # UDP CONNECTION
 def udp_discover():
@@ -142,12 +140,15 @@ def admin_handler(conn_socket: socket, addr):
                 message, buffer = buffer.split("\n", 1)
                 log_response(message, addr)
 
-                (command, param1, param2) = message.split(" ")
+                (command, param1, param2) = parse_params(message)
                 if command == "LIST_AGENTS" and not param1 and not param2:
                     client_list = parse_client_list()
                     conn_socket.send((f"AGENTS {client_list}\n").encode())
                 elif command == "GET_PROC" and is_number(param1) and not param2 :
                     client_id = int(param1)
+                    if client_id not in clients:
+                        conn_socket.send("ERROR 404 [NOT FOUND]\n".encode())
+                        continue
                     message = parse_get_proc(client_id)
                     conn_socket.send(message.encode())
                 elif command == "GET_METRIC" and is_number(param1) and param2 in ("MEM", "CPU"):
@@ -188,6 +189,7 @@ def connect_agent(id):
                     "socket": connection,
                     "CPU": [0] * 10,
                     "MEM": [0] * 10,
+                    "last_process": ""
                 }
                 threading.Thread(
                     target= client_handler,
