@@ -69,7 +69,7 @@ def client_handler(conn_socket: socket, client_id:int, addr):
             data = conn_socket.recv(1024).decode()
 
             if not data:
-                break
+                raise BrokenPipeError("El cliente cerró la conexion abruptamente (EOF)")
 
             buffer += data
             while "\n" in buffer:
@@ -87,6 +87,8 @@ def client_handler(conn_socket: socket, client_id:int, addr):
                     break
                 else:
                     conn_socket.send("ERROR 400 [BAD REQUEST]\n".encode())
+    except (error, OSError) as e:
+        print_response(f"ERROR {e}", addr)
     except:
         pass
     finally:
@@ -103,8 +105,7 @@ def admin_handler(conn_socket: socket, addr):
             data = conn_socket.recv(1024).decode()
 
             if not data:
-                break
-
+                raise ConnectionResetError("El administrador cerró la conexion abruptamente (EOF)")
             buffer += data
             while "\n" in buffer:
                 message, buffer = buffer.split("\n", 1)
@@ -134,8 +135,10 @@ def admin_handler(conn_socket: socket, addr):
                     break
                 else:
                     conn_socket.send("ERROR 400 [BAD REQUEST]\n".encode())
+    except (error, OSError) as e:
+        print_response(f"ERROR {e}", addr)
     except:
-        pass
+      pass
     finally:
         conn_socket.close()
 
