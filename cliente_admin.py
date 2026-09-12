@@ -87,11 +87,11 @@ def terminal_thread(client_tcp):
 
 if __name__ == "__main__":
     try:
-        socket, addr, ok = udp_discover()
+        admin_socket, addr, ok = udp_discover()
 
         if ok:
-            t1 = threading.Thread(target=response_thread, args=(socket, addr), daemon=True)
-            t2 = threading.Thread(target=terminal_thread, args=(socket,), daemon=True)
+            t1 = threading.Thread(target=response_thread, args=(admin_socket, addr), daemon=True)
+            t2 = threading.Thread(target=terminal_thread, args=(admin_socket,), daemon=True)
 
             t1.start()
             t2.start()
@@ -99,7 +99,7 @@ if __name__ == "__main__":
             while connection_alive:
                 time.sleep(1)
 
-            socket.close()
+            admin_socket.close()
 
     except TimeoutError:
         print("[UDP] ERROR 504 [TIMEOUT ERROR]")

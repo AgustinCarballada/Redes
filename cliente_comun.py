@@ -130,13 +130,13 @@ def udp_discover():
 if __name__ == "__main__":
 
     try:
-        socket, addr, ok, cpu_rate, mem_rate = udp_discover()
+        client_socket, addr, ok, cpu_rate, mem_rate = udp_discover()
 
         if ok:
-            t1 = threading.Thread(target=response_thread, args=(socket, addr,), daemon=True)
-            t2 = threading.Thread(target=send_metrics, args=(socket,), daemon=True)
-            t3 = threading.Thread(target=send_alerts, args=(socket, cpu_rate, mem_rate), daemon=True)
-            t4 = threading.Thread(target=terminal_thread, args=(socket,), daemon=True)
+            t1 = threading.Thread(target=response_thread, args=(client_socket, addr,), daemon=True)
+            t2 = threading.Thread(target=send_metrics, args=(client_socket,), daemon=True)
+            t3 = threading.Thread(target=send_alerts, args=(client_socket, cpu_rate, mem_rate), daemon=True)
+            t4 = threading.Thread(target=terminal_thread, args=(client_socket,), daemon=True)
 
             t1.start()
             t2.start()
@@ -146,7 +146,7 @@ if __name__ == "__main__":
             while connection_alive:
                 time.sleep(1)
 
-            socket.close()
+            client_socket.close()
 
     except TimeoutError:
         print("[UDP] ERROR 504 [TIMEOUT ERROR]")
