@@ -80,7 +80,7 @@ def terminal_thread(client_tcp):
             client_tcp.send(request.encode())
             if message == "END":
                 connection_alive = False
-                print("wait there, shooting down ..")
+                print("wait there, shutting down ..")
     except:
         pass
 
