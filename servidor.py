@@ -200,7 +200,7 @@ if __name__=='__main__':
     while not input() == "END":
        time.sleep(1)
 
-    print("wait there, shooting down ..")
+    print("wait there, shutting down ..")
     time.sleep(1)
 
 
