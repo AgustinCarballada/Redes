@@ -169,6 +169,7 @@ def connect_agent(id):
                 id += 1
             else:
                 connection.send("ERROR 403 [FORBIDDEN]\n".encode())
+                connection.close()
 
         elif message.startswith("ADMIN"):
             (_, key) = message.strip().split(" ")
@@ -180,6 +181,7 @@ def connect_agent(id):
                 ).start()
             else:
                 connection.send("ERROR 403 [FORBIDDEN]\n".encode())
+                connection.close()
 
 
 # main

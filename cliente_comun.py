@@ -36,7 +36,7 @@ def response_thread(client_tcp:socket, addr):
 
     except Exception:
         if connection_alive:
-            print("[TCP] ERROR 500 [COMMUNICATION ERROR]")
+            print("[TCP] ERROR 444 [CONNECTION_CLOSED]")
             connection_alive = False
 
 
@@ -44,9 +44,10 @@ def send_metrics(client_tcp):
     global connection_alive
     try:
         while connection_alive:
+            psutil.cpu_percent() # start CPU usage interval
             time.sleep(15)
 
-            cpu = psutil.cpu_percent()
+            cpu = psutil.cpu_percent() # end CPU usage interval
             client_tcp.send(f"METRIC CPU {cpu}\n".encode())
 
             mem = psutil.virtual_memory().percent
@@ -59,9 +60,10 @@ def send_alerts(client_tcp, cpu_rate, mem_rate):
     global connection_alive
     try:
         while connection_alive:
+            psutil.cpu_percent() # start CPU usage interval
             time.sleep(1)
 
-            cpu = psutil.cpu_percent()
+            cpu = psutil.cpu_percent() # end CPU usage interval
             if cpu > cpu_rate:
                 client_tcp.send(f"ALERT CPU {cpu}\n".encode())
 

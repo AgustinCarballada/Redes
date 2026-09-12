@@ -29,7 +29,7 @@ def response_thread(admin_tcp, addr):
 
     except Exception:
         if connection_alive:
-            print("[TCP] ERROR 500 [COMMUNICATION ERROR]")
+            print("[TCP] ERROR 444 [CONNECTION_CLOSED]")
             connection_alive = False
 
 
