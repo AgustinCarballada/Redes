@@ -11,7 +11,7 @@ from utils import (
 )
 
 KEY = "server123"
-UDP_PORT = 6063
+UDP_PORT = 6061
 TCP_PORT = 9999
 cpu_rate = 30
 mem_rate = 90

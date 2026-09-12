@@ -6,7 +6,7 @@ import time
 from utils import print_response
 
 
-SERVER_PORT = 6063
+SERVER_PORT = 6061
 BROADCAST_IP = "255.255.255.255"
 KEY = "server123"
 connection_alive = False
