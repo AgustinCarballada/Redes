@@ -1,3 +1,14 @@
-.vscode/
-.idea/
+cat << 'EOF' > .gitignore
+# Caché de Python
 __pycache__/
+*.py[cod]
+*$py.class
+
+# Archivos comprimidos y de distribución
+*.tar.gz
+obligatorio1Grupo61/
+
+# Configuración del entorno de desarrollo (JetBrains/IntelliJ/PyCharm)
+.idea/
+__MACOSX/
+EOF
