@@ -2,6 +2,22 @@
 
 Sistema de monitoreo con un servidor central y dos tipos de agentes: el **cliente** (agente monitoreado) y el **admin** (consola de administración). Ambos descubren al servidor por broadcast UDP y luego se conectan por TCP.
 
+## Requisitos
+
+Python 3 y la librería `psutil` (solo la usa `cliente_comun.py`; el servidor y el admin usan únicamente la librería estándar).
+
+```bash
+pip install -r requirements.txt
+```
+
+Si el Python del sistema no permite instalar paquetes directamente, usar un entorno virtual:
+
+```bash
+python3 -m venv .venv
+source .venv/bin/activate      # en Windows: .venv\Scripts\activate
+pip install -r requirements.txt
+```
+
 ## Cómo levantar todo
 
 ```bash
